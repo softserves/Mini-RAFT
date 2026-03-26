@@ -26,7 +26,8 @@ const brushSize   = document.getElementById("brushSize");
 const statusEl    = document.getElementById("status");
 
 document.getElementById("clearBtn").addEventListener("click", () => {
-
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  strokeLog = [];
   send({ type: "clear" });
 });
 
@@ -125,7 +126,7 @@ function connect() {
   };
 
   ws.onclose = () => {
-    setStatus("Disconnected — reconnecting", "disconnected");
+    setStatus("Disconnected, reconnecting", "disconnected");
     reconnectTimer = setTimeout(connect, 2000);
   };
 
