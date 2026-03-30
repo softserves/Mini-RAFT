@@ -18,9 +18,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - REPLICA1_URL=http://replica1:9001
-      - REPLICA2_URL=http://replica2:9002
-      - REPLICA3_URL=http://replica3:9003
+      - REPLICA1_URL=http://replica1:9000
+      - REPLICA2_URL=http://replica2:9000
+      - REPLICA3_URL=http://replica3:9000
     depends_on:
       - replica1
       - replica2
@@ -31,40 +31,40 @@ services:
       - raft-net
 
   replica1:
-    build: ./replica1
+    build: ./replica
     ports:
       - "9001:9000"
     environment:
       - REPLICA_ID=replica1
       - PORT=9000
-      - PEERS=http://replica2:9000,http://replica3:9000
+      - PEERS=replica2:9000,replica3:9000
     volumes:
-      - ./replica1:/app  # bind mount for hot reload
+      - ./replica:/app  # bind mount for hot reload
     networks:
       - raft-net
 
   replica2:
-    build: ./replica2
+    build: ./replica
     ports:
       - "9002:9000"
     environment:
       - REPLICA_ID=replica2
       - PORT=9000
-      - PEERS=http://replica1:9000,http://replica3:9000
+      - PEERS=replica1:9000,replica3:9000
     volumes:
-      - ./replica2:/app
+      - ./replica:/app
     networks:
       - raft-net
 
   replica3:
-    build: ./replica3
+    build: ./replica
     ports:
       - "9003:9000"
     environment:
       - REPLICA_ID=replica3
       - PORT=9000
-      - PEERS=http://replica1:9000,http://replica2:9000
+      - PEERS=replica1:9000,replica2:9000
     volumes:
-      - ./replica3:/app
+      - ./replica:/app
     networks:
       - raft-net
