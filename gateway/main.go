@@ -48,6 +48,10 @@ func replicaTargets() []string {
 }
 
 func leaderIndexByID(leaderID string, replicas []string) int {
+	if strings.TrimSpace(leaderID) == "" {
+		return -1
+	}
+
 	for i, url := range replicas {
 		if strings.Contains(url, leaderID+":") || strings.Contains(url, "/"+leaderID) {
 			return i
@@ -60,6 +64,7 @@ func sendToLeader(msg map[string]interface{}) {
 	fmt.Println("Trying replicas...")
 
 	replicas := replicaTargets()
+	startIndex := currentLeader
 
 	jsonData, err := json.Marshal(msg)
 	if err != nil {
@@ -68,7 +73,7 @@ func sendToLeader(msg map[string]interface{}) {
 	}
 
 	for i := 0; i < len(replicas); i++ {
-		index := (currentLeader + i) % len(replicas)
+		index := (startIndex + i) % len(replicas)
 		url := replicas[index]
 
 		fmt.Println("Trying:", url)
