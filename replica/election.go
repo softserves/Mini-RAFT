@@ -111,6 +111,7 @@ func (n *Node) becomeLeader(term int) {
 	n.leaderId = n.id
 	n.votes = 0
 	n.lastHeartbeat = time.Now()
+	n.initLeaderReplicationState()
 	n.logf("became leader term=%d", term)
 }
 
@@ -138,12 +139,11 @@ func (n *Node) heartbeatLoop() {
 			n.mutex.Unlock()
 			continue
 		}
-		term := n.currentTerm
 		peers := append([]string(nil), n.peers...)
 		n.mutex.Unlock()
 
 		for _, peer := range peers {
-			go n.sendHeartbeat(peer, term)
+			go n.replicateToPeer(peer, 0, true)
 		}
 	}
 }
@@ -175,25 +175,6 @@ func (n *Node) sendRequestVote(peer string, term int, voteCh chan<- voteResult) 
 }
 
 func (n *Node) sendHeartbeat(peer string, term int) {
-	payload := HeartbeatRequest{Term: term, LeaderID: n.id}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return
-	}
-
-	client := &http.Client{Timeout: 200 * time.Millisecond}
-	resp, err := client.Post(peer+"/heartbeat", "application/json", bytes.NewBuffer(body))
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-
-	var hbResp HeartbeatResponse
-	if err := json.NewDecoder(resp.Body).Decode(&hbResp); err != nil {
-		return
-	}
-
-	if hbResp.Term > term {
-		n.stepDown(hbResp.Term)
-	}
+	_ = term
+	n.replicateToPeer(peer, 0, true)
 }
