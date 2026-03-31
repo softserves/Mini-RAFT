@@ -23,7 +23,18 @@ type Node struct {
 	lastHeartbeat time.Time
 	peers         []string
 	votes         int
+	log           []LogEntry
+	commitIndex   int
+	lastApplied   int
+	nextIndex     map[string]int
+	matchIndex    map[string]int
 	mutex         sync.Mutex
+}
+
+type LogEntry struct {
+	Term   int                    `json:"term"`
+	Index  int                    `json:"index"`
+	Stroke map[string]interface{} `json:"stroke"`
 }
 
 type VoteRequest struct {
@@ -46,6 +57,28 @@ type HeartbeatResponse struct {
 	Success bool `json:"success"`
 }
 
+type AppendEntriesRequest struct {
+	Term         int        `json:"term"`
+	LeaderID     string     `json:"leaderId"`
+	PrevLogIndex int        `json:"prevLogIndex"`
+	PrevLogTerm  int        `json:"prevLogTerm"`
+	Entries      []LogEntry `json:"entries"`
+	LeaderCommit int        `json:"leaderCommit"`
+}
+
+type AppendEntriesResponse struct {
+	Term    int  `json:"term"`
+	Success bool `json:"success"`
+}
+
+type SyncLogRequest struct {
+	FromIndex int `json:"fromIndex"`
+}
+
+type SyncLogResponse struct {
+	Entries []LogEntry `json:"entries"`
+}
+
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
@@ -60,6 +93,11 @@ func NewNode(id string, peers []string) *Node {
 		lastHeartbeat: time.Now(),
 		peers:         peers,
 		votes:         0,
+		log:           make([]LogEntry, 0),
+		commitIndex:   0,
+		lastApplied:   0,
+		nextIndex:     make(map[string]int),
+		matchIndex:    make(map[string]int),
 	}
 }
 
