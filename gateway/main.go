@@ -8,11 +8,14 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
 
 var clients = make(map[*websocket.Conn]bool)
+var clientsMutex sync.RWMutex
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
@@ -21,6 +24,52 @@ var upgrader = websocket.Upgrader{
 }
 
 var currentLeader = 0
+var leaderMutex sync.RWMutex
+
+func getCurrentLeader() int {
+	leaderMutex.RLock()
+	defer leaderMutex.RUnlock()
+	return currentLeader
+}
+
+func setCurrentLeader(index int) {
+	leaderMutex.Lock()
+	currentLeader = index
+	leaderMutex.Unlock()
+}
+
+func clientCount() int {
+	clientsMutex.RLock()
+	defer clientsMutex.RUnlock()
+	return len(clients)
+}
+
+func connectedClients() []*websocket.Conn {
+	clientsMutex.RLock()
+	defer clientsMutex.RUnlock()
+
+	list := make([]*websocket.Conn, 0, len(clients))
+	for client := range clients {
+		list = append(list, client)
+	}
+	return list
+}
+
+func isReplicaAlive(baseURL string) bool {
+	client := &http.Client{Timeout: 250 * time.Millisecond}
+	req, err := http.NewRequest(http.MethodGet, strings.TrimRight(baseURL, "/")+"/request-vote", nil)
+	if err != nil {
+		return false
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	return true
+}
 
 func replicaTargets() []string {
 	urls := []string{
@@ -64,7 +113,7 @@ func sendToLeader(msg map[string]interface{}) {
 	fmt.Println("Trying replicas...")
 
 	replicas := replicaTargets()
-	startIndex := currentLeader
+	startIndex := getCurrentLeader()
 
 	jsonData, err := json.Marshal(msg)
 	if err != nil {
@@ -91,7 +140,7 @@ func sendToLeader(msg map[string]interface{}) {
 			if err := json.NewDecoder(resp.Body).Decode(&errResp); err == nil {
 				if leaderID, ok := errResp["leaderId"].(string); ok {
 					if idx := leaderIndexByID(leaderID, replicas); idx >= 0 {
-						currentLeader = idx
+						setCurrentLeader(idx)
 					}
 				}
 			}
@@ -112,15 +161,17 @@ func sendToLeader(msg map[string]interface{}) {
 		fmt.Println("Success from:", url)
 
 		// ✅ Update current leader
-		currentLeader = index
+		setCurrentLeader(index)
 
 		// ✅ Broadcast to all clients
-		for client := range clients {
+		for _, client := range connectedClients() {
 			err := client.WriteJSON(response)
 			if err != nil {
 				log.Println("Write error:", err)
 				client.Close()
+				clientsMutex.Lock()
 				delete(clients, client)
+				clientsMutex.Unlock()
 			}
 		}
 
@@ -128,6 +179,50 @@ func sendToLeader(msg map[string]interface{}) {
 	}
 
 	fmt.Println("All replicas failed")
+}
+
+func handleDebugStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	replicas := replicaTargets()
+	type replicaStatus struct {
+		URL   string `json:"url"`
+		Alive bool   `json:"alive"`
+	}
+
+	statuses := make([]replicaStatus, 0, len(replicas))
+	aliveCount := 0
+	for _, appendURL := range replicas {
+		baseURL := strings.TrimSuffix(appendURL, "/append-entry")
+		alive := isReplicaAlive(baseURL)
+		if alive {
+			aliveCount++
+		}
+		statuses = append(statuses, replicaStatus{URL: baseURL, Alive: alive})
+	}
+
+	leaderIndex := getCurrentLeader()
+	leaderURL := "unknown"
+	if leaderIndex >= 0 && leaderIndex < len(replicas) {
+		leaderURL = replicas[leaderIndex]
+		if !isReplicaAlive(strings.TrimSuffix(leaderURL, "/append-entry")) {
+			leaderURL = "unknown"
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"clientsConnected": clientCount(),
+		"currentLeaderUrl": leaderURL,
+		"replicas":         replicas,
+		"replicaStatus":    statuses,
+		"aliveReplicas":    aliveCount,
+		"timestamp":        time.Now().Format(time.RFC3339),
+	})
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
@@ -138,7 +233,9 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	}
 	defer ws.Close()
 
+	clientsMutex.Lock()
 	clients[ws] = true
+	clientsMutex.Unlock()
 	fmt.Println("New client connected")
 
 	for {
@@ -146,7 +243,9 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		err := ws.ReadJSON(&msg)
 		if err != nil {
 			log.Println("Read error:", err)
+			clientsMutex.Lock()
 			delete(clients, ws)
+			clientsMutex.Unlock()
 			break
 		}
 
@@ -159,8 +258,8 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if msgType == "stroke" {
-			fmt.Println("Stroke received → forwarding to leader")
+		if msgType == "stroke" || msgType == "clear" {
+			fmt.Printf("%s received → forwarding to leader\n", msgType)
 			sendToLeader(msg)
 		}
 	}
@@ -168,6 +267,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	http.HandleFunc("/ws", handleConnections)
+	http.HandleFunc("/debug/stats", handleDebugStats)
 
 	fmt.Println("Gateway running on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
