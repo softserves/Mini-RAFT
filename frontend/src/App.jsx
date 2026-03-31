@@ -2,6 +2,12 @@ import { useEffect, useRef, useState } from "react";
 
 const GATEWAY_URL = "ws://localhost:8080/ws";
 
+const THEMES = [
+  { id: "ocean", label: "Ocean", mascot: "🌊" },
+  { id: "autumn", label: "Autumn", mascot: "🍂" },
+  { id: "kitty", label: "Kitty", mascot: "🎀" },
+];
+
 function drawSegment(context, from, to, color, width) {
   if (!from || !to) return;
   context.strokeStyle = color;
@@ -36,6 +42,11 @@ export default function App() {
   const currentStrokeRef = useRef([]);
   const strokeLogRef = useRef([]);
 
+  const [themeIndex, setThemeIndex] = useState(() => {
+    const saved = localStorage.getItem("mini-raft-theme");
+    const idx = THEMES.findIndex((t) => t.id === saved);
+    return idx === -1 ? 0 : idx;
+  });
   const [color, setColor] = useState("#000000");
   const [brushSize, setBrushSize] = useState(4);
   const [status, setStatus] = useState("Connecting...");
@@ -157,6 +168,17 @@ export default function App() {
     resizeCanvas();
   }, [showDebug]);
 
+  const theme = THEMES[themeIndex];
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme.id);
+    localStorage.setItem("mini-raft-theme", theme.id);
+  }, [theme]);
+
+  const cycleTheme = () => {
+    setThemeIndex((i) => (i + 1) % THEMES.length);
+  };
+
   const onPointerDown = (e) => {
     isDrawingRef.current = true;
     currentStrokeRef.current = [{ x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY }];
@@ -220,7 +242,10 @@ export default function App() {
       )}
 
       <header id="toolbar" ref={toolbarRef}>
-        <div className="brand">Mini-RAFT Canvas</div>
+        <div className="brand">
+          <span className="mascot">{theme.mascot}</span>
+          Mini-RAFT Canvas
+        </div>
 
         <label className="control">
           <span>Color</span>
@@ -244,6 +269,11 @@ export default function App() {
         </label>
 
         <button className="clear-btn" onClick={clearCanvas}>Clear</button>
+
+        <button className="theme-switcher" onClick={cycleTheme} title="Switch theme">
+          <span className="mascot">{theme.mascot}</span>
+          {theme.label}
+        </button>
 
         <button
           className={`clear-btn debug-toggle ${showDebug ? "active" : ""}`}
