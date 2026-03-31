@@ -1,11 +1,13 @@
 package main
 
 import (
-    "bytes"
-    "encoding/json"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/gorilla/websocket"
 )
@@ -20,14 +22,44 @@ var upgrader = websocket.Upgrader{
 
 var currentLeader = 0
 
+func replicaTargets() []string {
+	urls := []string{
+		os.Getenv("REPLICA1_URL"),
+		os.Getenv("REPLICA2_URL"),
+		os.Getenv("REPLICA3_URL"),
+	}
+
+	fallback := []string{
+		"http://replica1:9000",
+		"http://replica2:9000",
+		"http://replica3:9000",
+	}
+
+	result := make([]string, 0, 3)
+	for i, u := range urls {
+		if strings.TrimSpace(u) == "" {
+			u = fallback[i]
+		}
+		u = strings.TrimRight(u, "/") + "/append-entry"
+		result = append(result, u)
+	}
+
+	return result
+}
+
+func leaderIndexByID(leaderID string, replicas []string) int {
+	for i, url := range replicas {
+		if strings.Contains(url, leaderID+":") || strings.Contains(url, "/"+leaderID) {
+			return i
+		}
+	}
+	return -1
+}
+
 func sendToLeader(msg map[string]interface{}) {
 	fmt.Println("Trying replicas...")
 
-	replicas := []string{
-		"http://replica1:9001/append-entry",
-		"http://replica2:9002/append-entry",
-		"http://replica3:9003/append-entry",
-	}
+	replicas := replicaTargets()
 
 	jsonData, err := json.Marshal(msg)
 	if err != nil {
@@ -48,6 +80,22 @@ func sendToLeader(msg map[string]interface{}) {
 		}
 
 		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusConflict {
+			var errResp map[string]interface{}
+			if err := json.NewDecoder(resp.Body).Decode(&errResp); err == nil {
+				if leaderID, ok := errResp["leaderId"].(string); ok {
+					if idx := leaderIndexByID(leaderID, replicas); idx >= 0 {
+						currentLeader = idx
+					}
+				}
+			}
+			continue
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			continue
+		}
 
 		var response map[string]interface{}
 		err = json.NewDecoder(resp.Body).Decode(&response)
@@ -98,17 +146,17 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		}
 
 		fmt.Println("Received:", msg)
-		
+
 		// Check message type
 		msgType, ok := msg["type"].(string)
 		if !ok {
-    			fmt.Println("Invalid message format")
-    			continue
+			fmt.Println("Invalid message format")
+			continue
 		}
 
 		if msgType == "stroke" {
-    			fmt.Println("Stroke received → forwarding to leader")
-                sendToLeader(msg)
+			fmt.Println("Stroke received → forwarding to leader")
+			sendToLeader(msg)
 		}
 	}
 }
