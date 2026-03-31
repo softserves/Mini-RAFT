@@ -1,10 +1,10 @@
-gs# Distributed Real-Time Drawing Board
+# Distributed Real-Time Drawing Board
 
 A collaborative whiteboard backed by a Mini-RAFT consensus cluster.
 
 ## Architecture
 
-```
+```text
 Browser(s)
    │ WebSocket
    ▼
@@ -39,6 +39,7 @@ All strokes use this format :
 ```
 
 For clear events:
+
 ```json
 { "type": "clear" }
 ```
@@ -49,7 +50,7 @@ For clear events:
 docker compose up --build
 ```
 
-Open http://localhost:3000 in multiple tabs to test.
+Open [http://localhost:3000](http://localhost:3000) in multiple tabs to test.
 
 ## RAFT Election Testing
 
@@ -106,6 +107,43 @@ curl -X POST http://localhost:9002/request-vote -H "Content-Type: application/js
 ```bash
 docker compose down
 ```
+
+## RAFT Log Replication Testing
+
+### 1) Leader write + majority commit
+
+Send a stroke to the current leader (or draw in the frontend):
+
+```bash
+curl -X POST http://localhost:9001/append-entry -H "Content-Type: application/json" -d '{"type":"stroke","points":[{"x":10,"y":10},{"x":20,"y":20}],"color":"#ff0000","width":3}'
+```
+
+Expected in leader logs:
+
+- `appended entry index=<n>`
+- `replicated entry to <replica>`
+- `committed index=<n>`
+
+### 2) Quorum failure behavior
+
+Stop two replicas so only one remains alive:
+
+```bash
+docker compose stop replica2 replica3
+```
+
+Now writes should fail with:
+
+- HTTP `503`
+- body: `{"error":"replication_failed"}`
+
+Bring one replica back to restore quorum:
+
+```bash
+docker compose start replica2
+```
+
+Writes should succeed again.
 
 ## Team Responsibilities
 

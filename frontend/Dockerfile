@@ -1,14 +1,12 @@
-FROM golang:1.21-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
-COPY go.mod ./
-RUN go mod download
+COPY package.json ./
+RUN npm install
 
 COPY . .
 
-RUN go build -o frontend .
-
 EXPOSE 3000
 
-CMD ["./frontend"]
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]

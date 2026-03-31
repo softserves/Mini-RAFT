@@ -118,11 +118,16 @@ func (n *Node) handleAppendEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := map[string]interface{}{
-		"type":   "stroke",
-		"points": entry.Stroke["points"],
-		"color":  entry.Stroke["color"],
-		"width":  entry.Stroke["width"],
+	msgType, _ := entry.Stroke["type"].(string)
+	response := map[string]interface{}{}
+
+	if msgType == "clear" {
+		response["type"] = "clear"
+	} else {
+		response["type"] = "stroke"
+		response["points"] = entry.Stroke["points"]
+		response["color"] = entry.Stroke["color"]
+		response["width"] = entry.Stroke["width"]
 	}
 
 	w.Header().Set("Content-Type", "application/json")

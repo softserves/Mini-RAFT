@@ -1,0 +1,250 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --pink-100: #ffe4f3;
+  --pink-200: #ffd6ec;
+  --pink-300: #faaad3;
+  --pink-400: #ff80ab;
+  --pink-500: #f06292;
+  --pink-700: #c2185b;
+  --pink-800: #8e2c62;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: radial-gradient(circle at top, var(--pink-200), var(--pink-100));
+  color: var(--pink-700);
+  overflow: hidden;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+#toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 12px 16px;
+  background: linear-gradient(90deg, var(--pink-300), #f9b8df);
+  border-bottom: 1px solid #f386aa;
+  box-shadow: 0 2px 10px rgba(194, 24, 91, 0.12);
+}
+
+.brand {
+  font-weight: 700;
+  color: var(--pink-700);
+  margin-right: 4px;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.4);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 14px;
+}
+
+.control input[type="range"] {
+  accent-color: var(--pink-700);
+}
+
+.clear-btn {
+  padding: 8px 14px;
+  background: var(--pink-400);
+  border: none;
+  border-radius: 999px;
+  color: white;
+  cursor: pointer;
+  font-weight: 700;
+  transition: transform 0.12s ease, background-color 0.12s ease;
+}
+
+.clear-btn:hover {
+  background: var(--pink-500);
+  transform: translateY(-1px);
+}
+
+#status {
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+#status.connected {
+  color: #136f3a;
+}
+
+#status.disconnected {
+  color: var(--pink-800);
+}
+
+#canvas {
+  flex: 1;
+  display: block;
+  cursor: crosshair;
+  background: #ffdded;
+}
+
+.debug-strip {
+  display: flex;
+  gap: 10px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.5);
+  border-bottom: 1px solid #efb0cf;
+  backdrop-filter: blur(4px);
+}
+
+.debug-toggle {
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--pink-700);
+  border: 1px solid rgba(194, 24, 91, 0.2);
+}
+
+.debug-toggle.active {
+  background: linear-gradient(90deg, var(--pink-400), var(--pink-500));
+  color: #fff;
+  border-color: transparent;
+}
+
+.draw-hint-row {
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.25);
+  border-bottom: 1px solid rgba(194, 24, 91, 0.1);
+}
+
+.hint-pill {
+  width: fit-content;
+  font-size: 12px;
+  color: var(--pink-800);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(194, 24, 91, 0.12);
+}
+
+.replica-status-row {
+  display: flex;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.35);
+  border-bottom: 1px solid rgba(194, 24, 91, 0.12);
+}
+
+.replica-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.replica-pill .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.replica-pill.up {
+  color: #136f3a;
+  border-color: rgba(19, 111, 58, 0.25);
+}
+
+.replica-pill.up .dot {
+  background: #21b364;
+}
+
+.replica-pill.down {
+  color: #a5194f;
+  border-color: rgba(165, 25, 79, 0.25);
+}
+
+.replica-pill.down .dot {
+  background: #d94b80;
+}
+
+.debug-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--pink-800);
+  border: 1px solid rgba(194, 24, 91, 0.15);
+}
+
+.debug-chip strong {
+  color: var(--pink-700);
+}
+
+.replicas {
+  margin-left: auto;
+}
+
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 228, 243, 0.88);
+  backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
+  z-index: 20;
+}
+
+.loading-card {
+  min-width: 320px;
+  padding: 22px 24px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(194, 24, 91, 0.2);
+  box-shadow: 0 12px 28px rgba(194, 24, 91, 0.15);
+  text-align: center;
+}
+
+.loading-card h2 {
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+.loading-card p {
+  font-size: 13px;
+  color: var(--pink-800);
+}
+
+.spinner {
+  width: 38px;
+  height: 38px;
+  margin: 0 auto 12px;
+  border-radius: 999px;
+  border: 3px solid #f7b7d6;
+  border-top-color: var(--pink-500);
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
