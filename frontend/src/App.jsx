@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
-const GATEWAY_URL = "ws://localhost:8080/ws";
+const GATEWAY_URL = import.meta.env.DEV
+  ? "ws://localhost:8080/ws"
+  : `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws`;
+
+const DEBUG_STATS_URL = import.meta.env.DEV
+  ? "http://localhost:8080/debug/stats"
+  : `${window.location.origin}/debug/stats`;
 
 const THEMES = [
   { id: "ocean", label: "Ocean", mascot: "🌊" },
@@ -150,7 +156,7 @@ export default function App() {
   useEffect(() => {
     const pullDebugStats = async () => {
       try {
-        const resp = await fetch("http://localhost:8080/debug/stats");
+        const resp = await fetch(DEBUG_STATS_URL);
         if (!resp.ok) return;
         const data = await resp.json();
         setDebug(data);
